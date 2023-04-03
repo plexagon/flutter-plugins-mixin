@@ -29,8 +29,8 @@ class MyApp extends StatelessWidget {
 
     try {
       if (bookmarkEnable) {
-        bool grantedPermission = await DesktopDrop.instance
-            .startAccessingSecurityScopedResource(bookmark: appleBookmark);
+        bool grantedPermission =
+            await DesktopDrop.instance.startAccessingSecurityScopedResource(bookmark: appleBookmark);
 
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
@@ -44,12 +44,10 @@ class MyApp extends StatelessWidget {
       var fileSize = contents.length;
 
       if (bookmarkEnable) {
-        await DesktopDrop.instance
-            .stopAccessingSecurityScopedResource(bookmark: appleBookmark);
+        await DesktopDrop.instance.stopAccessingSecurityScopedResource(bookmark: appleBookmark);
       }
 
-      final snackBar =
-          SnackBar(content: Text('file size:' + fileSize.toString()));
+      final snackBar = SnackBar(content: Text('file size:' + fileSize.toString()));
       ScaffoldMessenger.of(context).showSnackBar(snackBar);
     } catch (e) {
       final snackBar = SnackBar(content: Text('error:' + e.toString()));
@@ -142,24 +140,28 @@ class _ExampleDragTargetState extends State<ExampleDragTarget> {
   @override
   Widget build(BuildContext context) {
     return DropTarget(
-      onDragDone: (detail) async {
+      onDragDone: (files, location) async {
         setState(() {
-          _list.addAll(detail.files);
-          drop_files.addAll(detail.files);
+          _list.addAll(files);
         });
 
         debugPrint('onDragDone:');
-        await printFiles(detail.files);
+        for (final file in files) {
+          debugPrint('  ${file.path} ${file.name}'
+              '  ${await file.lastModified()}'
+              '  ${await file.length()}'
+              '  ${file.mimeType}');
+        }
       },
-      onDragUpdated: (details) {
+      onDragUpdated: (localPosition) {
         setState(() {
-          offset = details.localPosition;
+          offset = localPosition;
         });
       },
-      onDragEntered: (detail) {
+      onDragEntered: (localPosition) {
         setState(() {
           _dragging = true;
-          offset = detail.localPosition;
+          offset = localPosition;
         });
       },
       onDragExited: (detail) {
@@ -174,10 +176,7 @@ class _ExampleDragTargetState extends State<ExampleDragTarget> {
         color: _dragging ? Colors.blue.withOpacity(0.4) : Colors.black26,
         child: Stack(
           children: [
-            if (_list.isEmpty)
-              Center(child: Text("Drop here"))
-            else
-              Text(_list.map((e) => e.path).join("\n")),
+            if (_list.isEmpty) const Center(child: Text("Drop here")) else Text(_list.map((e) => e.path).join("\n")),
             if (offset != null)
               Align(
                 alignment: Alignment.topRight,
@@ -194,19 +193,16 @@ class _ExampleDragTargetState extends State<ExampleDragTarget> {
                     Map<String, String> data = Map();
                     data["path"] = drop_files[0].path;
 
-                    String bookmark =
-                        base64.encode(drop_files[0].extraAppleBookmark!);
+                    String bookmark = base64.encode(drop_files[0].extraAppleBookmark!);
                     data["apple-bookmark"] = bookmark;
 
                     String jsonStr = json.encode(data);
                     print(jsonStr);
-                    final SharedPreferences prefs =
-                        await SharedPreferences.getInstance();
+                    final SharedPreferences prefs = await SharedPreferences.getInstance();
                     prefs.setString("apple-bookmark", jsonStr);
 
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(
-                            'Save Suc, restart app, and Test Apple Bookmark')));
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('Save Suc, restart app, and Test Apple Bookmark')));
                   },
                   child: Text(
                     'save bookmark',

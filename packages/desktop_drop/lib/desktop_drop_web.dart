@@ -27,6 +27,19 @@ class DesktopDropWeb {
     pluginInstance._registerEvents();
   }
 
+  web.DataTransfer? __dataTransfer;
+
+  web.DataTransfer? get _dataTransfer => __dataTransfer;
+
+  set _dataTransfer(web.DataTransfer? newValue) {
+    if (__dataTransfer != newValue) {
+      if (__dataTransfer != null) {
+        newValue?.dropEffect = __dataTransfer!.dropEffect;
+      }
+      __dataTransfer = newValue;
+    }
+  }
+
   Future<WebDropItem> _entryToWebDropItem(web.FileSystemEntry entry) async {
     if (entry.isDirectory == true) {
       entry = entry as web.FileSystemDirectoryEntry;
@@ -43,8 +56,7 @@ class DesktopDropWeb {
       final children = await Future.wait(
         entries.map((e) => _entryToWebDropItem(e)),
       )
-        ..removeWhere(
-            (element) => element.name == '.DS_Store' && element.type == '');
+        ..removeWhere((element) => element.name == '.DS_Store' && element.type == '');
 
       return WebDropItem(
         uri: web.URL.createObjectURL(web.Blob().slice(0, 0, 'directory')),
@@ -78,12 +90,12 @@ class DesktopDropWeb {
       type: file.type,
       children: [],
     );
-
   }
 
   void _registerEvents() {
     web.window.ondrop = ((web.DragEvent event) {
       event.preventDefault();
+      _dataTransfer = null;
 
       final items = event.dataTransfer!.items;
 
@@ -103,6 +115,7 @@ class DesktopDropWeb {
 
     web.window.ondragenter = ((web.DragEvent event) {
       event.preventDefault();
+      _dataTransfer = event.dataTransfer;
       channel.invokeMethod('entered', [
         event.clientX.toDouble(),
         event.clientY.toDouble(),
@@ -111,6 +124,7 @@ class DesktopDropWeb {
 
     web.window.ondragover = ((web.DragEvent event) {
       event.preventDefault();
+      _dataTransfer = event.dataTransfer;
       channel.invokeMethod('updated', [
         event.clientX.toDouble(),
         event.clientY.toDouble(),
@@ -119,6 +133,7 @@ class DesktopDropWeb {
 
     web.window.ondragleave = ((web.DragEvent event) {
       event.preventDefault();
+      _dataTransfer = null;
       channel.invokeMethod('exited', [
         event.clientX.toDouble(),
         event.clientY.toDouble(),
@@ -127,6 +142,19 @@ class DesktopDropWeb {
   }
 
   Future<dynamic> handleMethodCall(MethodCall call) async {
+    switch (call.method) {
+      case 'updateDroppableStatus':
+        final enable = call.arguments as bool;
+        final current = _dataTransfer?.dropEffect;
+        final newValue = enable ? 'copy' : 'move';
+        if (current != newValue) {
+          _dataTransfer?.dropEffect = newValue;
+        }
+        return;
+      default:
+        break;
+    }
+
     throw PlatformException(
       code: 'Unimplemented',
       details: 'desktop_drop for web doesn\'t implement \'${call.method}\'',
